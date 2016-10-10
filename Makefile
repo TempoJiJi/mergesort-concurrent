@@ -1,10 +1,15 @@
 CC = gcc
-CFLAGS = -std=gnu99 -Wall -g -pthread
+CFLAGS = -std=gnu99 -Wall -g -pthread 
 OBJS = list.o threadpool.o main.o
 
-.PHONY: all clean test
+
+.PHONY: all clean 
 
 GIT_HOOKS := .git/hooks/pre-commit
+
+ifeq ($(strip $(BENCH)),1)
+CFLAGS += -DBENCH
+endif
 
 all: $(GIT_HOOKS) sort
 
@@ -19,8 +24,23 @@ deps := $(OBJS:%.o=.%.o.d)
 sort: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) -rdynamic
 
+input_generator: all
+	$(CC) $(CFLAGS) input_generator.c -o input_generator
+
+bench: input_generator
+	for i in `seq 100000 10000 500000`; do \
+	    ./input_generator $$i; \
+	    for j in 1 2 4 8 16 32 64; do \
+		./sort $$j $$i; \
+	    done \
+	done
+
+plot: bench
+	gnuplot scripts/runtime.gp
+
 clean:
-	rm -f $(OBJS) sort
+	rm -f $(OBJS) sort \
+	    input_generator input output runtime.png
 	@rm -rf $(deps)
 
 -include $(deps)

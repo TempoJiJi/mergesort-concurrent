@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "threadpool.h"
 #include "list.h"
@@ -84,7 +85,9 @@ void merge(void *data)
         task_t *_task = (task_t *) malloc(sizeof(task_t));
         _task->func = NULL;
         tqueue_push(pool->queue, _task);
+#if !defined(BENCH)
         list_print(_list);
+#endif
     }
 }
 
@@ -140,12 +143,21 @@ static void *task_run(void *data)
     pthread_exit(NULL);
 }
 
+static double diff_in_second(struct timespec t1, struct timespec t2)
+{
+    struct timespec diff;
+    if (t2.tv_nsec-t1.tv_nsec < 0) {
+        diff.tv_sec  = t2.tv_sec - t1.tv_sec - 1;
+        diff.tv_nsec = t2.tv_nsec - t1.tv_nsec + 1000000000;
+    } else {
+        diff.tv_sec  = t2.tv_sec - t1.tv_sec;
+        diff.tv_nsec = t2.tv_nsec - t1.tv_nsec;
+    }
+    return (diff.tv_sec + diff.tv_nsec / 1000000000.0);
+}
+
 int main(int argc, char const *argv[])
 {
-    if (argc < 3) {
-        printf(USAGE);
-        return -1;
-    }
     thread_count = atoi(argv[1]);
     data_count = atoi(argv[2]);
     max_cut = thread_count * (thread_count <= data_count) +
@@ -154,15 +166,23 @@ int main(int argc, char const *argv[])
     /* Read data */
     the_list = list_new();
 
-    /* FIXME: remove all all occurrences of printf and scanf
-     * in favor of automated test flow.
-     */
+#if defined(BENCH)
+    struct timespec start, end;
+    double cpu_time;
+    FILE *fp = fopen("input","r");
+    long int data;
+    while ((fscanf(fp, "%ld\n", &data)) != EOF) {
+        list_add(the_list, data);
+    }
+    fclose(fp);
+#else
     printf("input unsorted data line-by-line\n");
     for (int i = 0; i < data_count; ++i) {
         long int data;
         scanf("%ld", &data);
         list_add(the_list, data);
     }
+#endif
 
     /* initialize tasks inside thread pool */
     pthread_mutex_init(&(data_context.mutex), NULL);
@@ -170,6 +190,10 @@ int main(int argc, char const *argv[])
     tmp_list = NULL;
     pool = (tpool_t *) malloc(sizeof(tpool_t));
     tpool_init(pool, thread_count, task_run);
+
+#if defined(BENCH)
+    clock_gettime(CLOCK_REALTIME, &start);
+#endif
 
     /* launch the first task */
     task_t *_task = (task_t *) malloc(sizeof(task_t));
@@ -179,5 +203,18 @@ int main(int argc, char const *argv[])
 
     /* release thread pool */
     tpool_free(pool);
+
+#if defined(BENCH)
+    clock_gettime(CLOCK_REALTIME, &end);
+    cpu_time = diff_in_second(start,end);
+
+    fp = fopen("output","a");
+    if(thread_count == 1)
+        fprintf(fp, "%d", data_count);
+    fprintf(fp, " %lf", cpu_time);
+    if(thread_count == 64)
+        fprintf(fp, "\n");
+    fclose(fp);
+#endif
     return 0;
 }
