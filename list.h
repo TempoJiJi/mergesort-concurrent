@@ -5,19 +5,15 @@
 
 typedef intptr_t val_t;
 
-typedef struct node {
+typedef struct _LIST_T {
     val_t data;
-    struct node *next;
-} node_t;
+    struct _LIST_T *next;
+} list_t;
 
-typedef struct llist {
-    node_t *head;
-    uint32_t size;
-} llist_t;
 
-llist_t *list_new();
-int list_add(llist_t *the_list, val_t val);
-void list_print(llist_t *the_list);
-node_t *list_nth(llist_t *the_list, uint32_t index);
+list_t *list_add(list_t *e, val_t val);
+list_t *getMiddle(list_t *list);
+int count_size(list_t *list);
+void list_print(list_t *list);
 
 #endif

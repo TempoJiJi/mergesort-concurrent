@@ -8,6 +8,6 @@ int main(int argc, char *argv[])
     FILE *fp = fopen("input","w+");
     srand((long int)time(NULL));
     for(int i = 0; i < MAX_SIZE; i++)
-        fprintf(fp, "%u\n", rand());
+        fprintf(fp, "%u\n", rand() - 10000);
     fclose(fp);
 }
